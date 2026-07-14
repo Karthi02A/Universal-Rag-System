@@ -180,7 +180,7 @@ with st.sidebar:
         )
         
         use_hybrid = st.checkbox("Use Hybrid Search", value=True)
-        use_reranker = st.checkbox("Use Cross-Encoder Re-ranking", value=True)
+        use_reranker = st.checkbox("Use Cross-Encoder Re-ranking", value=False)
     
     st.markdown("<br><br>", unsafe_allow_html=True)
     
@@ -590,64 +590,70 @@ with chat_container:
         with st.chat_message(msg["role"], avatar="🧑‍💻" if msg["role"] == "user" else "🤖"):
             st.markdown(msg["content"])
 
-# Lock prompt if database contains no documents
-prompt = st.chat_input("Ask a question...", disabled=is_db_empty)
+# Lock prompt if database contains no documents or a query is processing
+prompt = st.chat_input("Ask a question...", disabled=is_db_empty or st.session_state.get("processing", False))
 
 if prompt:
     if not api_key:
         st.error("GROQ_API_KEY is not configured.")
     else:
-        # Display user input
-        with chat_container:
-            with st.chat_message("user", avatar="🧑‍💻"):
-                st.markdown(prompt)
         st.session_state.messages.append({"role": "user", "content": prompt})
-        
-        # Call LLM with a simple thinking spinner (no emojis or intermediate statuses displayed)
-        with chat_container:
-            with st.chat_message("assistant", avatar="🤖"):
-                with st.spinner("Thinking..."):
-                    try:
-                        # Filter out basic greetings, acknowledgments, or politeness turns to bypass retrieval and optimize TPM
-                        if is_conversational_query(prompt):
-                            retrieved = []
-                        else:
-                            retrieved = search_chunks(
-                                st.session_state.collection_name, 
-                                prompt, 
-                                top_k=3, # optimized top_k from 4 to 3 to conserve token limit quota
-                                use_hybrid=use_hybrid, 
-                                use_reranker=use_reranker
-                            )
-                        
-                        import inspect
-                        sig = inspect.signature(generate_answer)
-                        if "chat_history" in sig.parameters:
-                            response_stream = generate_answer(
-                                query=prompt,
-                                context_chunks=retrieved,
-                                api_key=api_key,
-                                chat_history=st.session_state.messages[:-1],
-                                model=model_choice,
-                                temperature=temperature
-                            )
-                        else:
-                            response_stream = generate_answer(
-                                query=prompt,
-                                context_chunks=retrieved,
-                                api_key=api_key,
-                                model=model_choice,
-                                temperature=temperature
-                            )
-                        
-                        placeholder = st.empty()
-                        full_response = ""
-                        for chunk in response_stream:
-                            full_response += chunk
-                            placeholder.markdown(full_response + "▌")
-                        placeholder.markdown(full_response)
-                        st.session_state.messages.append({"role": "assistant", "content": full_response})
-                    except Exception as e:
-                        err = f"Error occurred: {str(e)}"
-                        st.error(err)
-                        st.session_state.messages.append({"role": "assistant", "content": err})
+        st.session_state.current_prompt = prompt
+        st.session_state.processing = True
+        st.rerun()
+
+# Call LLM with a simple thinking spinner (no emojis or intermediate statuses displayed)
+if st.session_state.get("processing", False) and "current_prompt" in st.session_state:
+    current_prompt = st.session_state.current_prompt
+    with chat_container:
+        with st.chat_message("assistant", avatar="🤖"):
+            with st.spinner("Thinking..."):
+                try:
+                    # Filter out basic greetings, acknowledgments, or politeness turns to bypass retrieval and optimize TPM
+                    if is_conversational_query(current_prompt):
+                        retrieved = []
+                    else:
+                        retrieved = search_chunks(
+                            st.session_state.collection_name, 
+                            current_prompt, 
+                            top_k=3, # optimized top_k from 4 to 3 to conserve token limit quota
+                            use_hybrid=use_hybrid, 
+                            use_reranker=use_reranker
+                        )
+                    
+                    import inspect
+                    sig = inspect.signature(generate_answer)
+                    if "chat_history" in sig.parameters:
+                        response_stream = generate_answer(
+                            query=current_prompt,
+                            context_chunks=retrieved,
+                            api_key=api_key,
+                            chat_history=st.session_state.messages[:-1],
+                            model=model_choice,
+                            temperature=temperature
+                        )
+                    else:
+                        response_stream = generate_answer(
+                            query=current_prompt,
+                            context_chunks=retrieved,
+                            api_key=api_key,
+                            model=model_choice,
+                            temperature=temperature
+                        )
+                    
+                    placeholder = st.empty()
+                    full_response = ""
+                    for chunk in response_stream:
+                        full_response += chunk
+                        placeholder.markdown(full_response + "▌")
+                    placeholder.markdown(full_response)
+                    st.session_state.messages.append({"role": "assistant", "content": full_response})
+                except Exception as e:
+                    err = f"Error occurred: {str(e)}"
+                    st.error(err)
+                    st.session_state.messages.append({"role": "assistant", "content": err})
+                finally:
+                    st.session_state.processing = False
+                    if "current_prompt" in st.session_state:
+                        del st.session_state.current_prompt
+                    st.rerun()

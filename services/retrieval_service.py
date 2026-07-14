@@ -8,7 +8,15 @@ import streamlit as st
 @st.cache_resource
 def get_reranker():
     from sentence_transformers import CrossEncoder
-    return CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+    import os
+    
+    local_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "local_reranker")
+    if os.path.exists(local_path):
+        model_name_or_path = local_path
+    else:
+        model_name_or_path = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+        
+    return CrossEncoder(model_name_or_path)
 
 def tokenize(text):
     return re.findall(r'\w+', text.lower())
