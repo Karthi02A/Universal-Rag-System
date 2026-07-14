@@ -99,6 +99,42 @@ section[data-testid="stSidebar"] {
     box-shadow: none !important;
     transform: none !important;
 }
+
+/* Mobile-friendly responsiveness overrides */
+@media (max-width: 768px) {
+    /* Reduce block-container padding to maximize screen width on mobile */
+    [data-testid="stAppViewBlockContainer"], .block-container {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        padding-top: 1.5rem !important;
+        padding-bottom: 3.5rem !important;
+    }
+    
+    .hero-title {
+        font-size: 1.6rem !important;
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.2rem !important;
+    }
+    
+    .hero-subtitle {
+        font-size: 0.85rem !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    .status-box {
+        padding: 0.6rem 0.8rem !important;
+        font-size: 0.8rem !important;
+        margin-top: 0.5rem !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    /* Compact tabs padding for small screen width */
+    .stTabs [data-baseweb="tab"] {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+        font-size: 0.85rem !important;
+    }
+}
 </style>
 """, unsafe_allow_html=True)
 
