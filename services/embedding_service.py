@@ -6,7 +6,7 @@ def get_embedding_model():
     from sentence_transformers import SentenceTransformer
     import torch
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    return SentenceTransformer("BAAI/bge-base-en-v1.5", device=device)
+    return SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2", device=device)
 
 def generate_embeddings(chunks, progress_callback=None):
     model = get_embedding_model()
