@@ -5,8 +5,18 @@ def get_embedding_model():
     # Lazy import to avoid startup lag
     from sentence_transformers import SentenceTransformer
     import torch
+    import os
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    return SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2", device=device)
+    
+    # Path to local model committed in the repository
+    local_model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "local_model")
+    if os.path.exists(local_model_path):
+        model_name_or_path = local_model_path
+    else:
+        # Fallback to downloading if local model is not found
+        model_name_or_path = "sentence-transformers/all-MiniLM-L6-v2"
+        
+    return SentenceTransformer(model_name_or_path, device=device)
 
 def generate_embeddings(chunks, progress_callback=None):
     model = get_embedding_model()
