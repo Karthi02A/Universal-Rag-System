@@ -23,38 +23,6 @@ except ImportError:
     importlib.reload(services.llm_service)
     from services.llm_service import generate_answer, is_conversational_query
 
-# Background Preloader for PyTorch Models (avoids the 70s first-use block during document indexing)
-@st.cache_resource
-def start_model_preloading():
-    import threading
-    
-    # Using mutable dictionary to share status safely across threads
-    status = {"embedding": "loading", "reranker": "loading"}
-    
-    def preload_worker():
-        try:
-            # Load embedding model
-            from services.embedding_service import get_embedding_model
-            get_embedding_model()
-            status["embedding"] = "ready"
-        except Exception as e:
-            status["embedding"] = f"error: {str(e)}"
-            
-        try:
-            # Load reranker model
-            from services.retrieval_service import get_reranker
-            get_reranker()
-            status["reranker"] = "ready"
-        except Exception as e:
-            status["reranker"] = f"error: {str(e)}"
-            
-    thread = threading.Thread(target=preload_worker, daemon=True)
-    thread.start()
-    return status
-
-# Initialize preloading asynchronously (Streamlit runs this once per server startup lifecycle)
-preload_status = start_model_preloading()
-
 # Page Configuration
 st.set_page_config(
     page_title="Conversational RAG System",
@@ -206,17 +174,6 @@ db_stats = st.session_state.db_stats
 with st.sidebar:
     st.markdown("<div class='sidebar-title'>Control Panel</div>", unsafe_allow_html=True)
     
-    # Show preloading status in the Control Panel
-    emb_state = preload_status["embedding"]
-    rerank_state = preload_status["reranker"]
-    
-    if emb_state == "ready" and rerank_state == "ready":
-        st.success("✓ AI models loaded and active")
-    elif "error" in emb_state or "error" in rerank_state:
-        st.error(f"⚠️ Model load failed: Emb: {emb_state}, Reranker: {rerank_state}")
-    else:
-        st.info("⏳ AI models initializing in background... (Est: ~60s on first startup)")
-        
     # default to llama-3.1-8b-instant for fast generations
     model_choice = st.selectbox(
         "Model Selection",
@@ -321,9 +278,7 @@ with st.expander("Ingest Document or Web Page", expanded=is_db_empty):
             if uploaded_file.size > MAX_FILE_SIZE:
                 st.error("File size exceeds the 30 MB limit. Please upload a smaller file.")
             else:
-                is_ready = (preload_status["embedding"] == "ready")
-                btn_pdf_label = "Index Document" if is_ready else "Indexing (Waiting for AI models to preload...)"
-                if st.button(btn_pdf_label, key="btn_pdf", disabled=not is_ready):
+                if st.button("Index Document", key="btn_pdf"):
                     try:
                         t_start_processing = time.time()
                         
@@ -487,9 +442,7 @@ with st.expander("Ingest Document or Web Page", expanded=is_db_empty):
     with tab_web:
         web_url = st.text_input("Web URL", placeholder="https://example.com/article", label_visibility="collapsed")
         
-        is_ready = (preload_status["embedding"] == "ready")
-        btn_web_label = "Index Web Page" if is_ready else "Indexing (Waiting for AI models to preload...)"
-        if st.button(btn_web_label, key="btn_web", disabled=not is_ready):
+        if st.button("Index Web Page", key="btn_web"):
             if web_url.strip():
                 try:
                     t_start_processing = time.time()
