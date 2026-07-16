@@ -5,8 +5,7 @@ import time
 def extract_pdf_pages(pdf_file, progress_callback=None, timeout_seconds=120):
     """
     Extracts text page-by-page. Automatically detects whether a page contains
-    extractable text. Only applies OCR to pages without text (scanned pages)
-    entirely in-memory.
+    extractable text.
     
     timeout_seconds: maximum time allowed for processing before raising TimeoutError.
     progress_callback: a function that takes (stage, current, total, status_text)
@@ -24,7 +23,6 @@ def extract_pdf_pages(pdf_file, progress_callback=None, timeout_seconds=120):
     total_pages = len(pdf_document)
     pages_data = []
     
-    scanned_pages = []
     text_by_page = {}
     
     # Phase 1: Fast text extraction pass
@@ -42,8 +40,6 @@ def extract_pdf_pages(pdf_file, progress_callback=None, timeout_seconds=120):
         has_text = bool(re.search(r'[a-zA-Z0-9]', clean_text))
         if has_text:
             text_by_page[page_num] = clean_text
-        else:
-            scanned_pages.append(page_num)
             
         if progress_callback:
             progress_callback(

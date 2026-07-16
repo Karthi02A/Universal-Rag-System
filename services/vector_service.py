@@ -3,11 +3,18 @@ import uuid
 import numpy as np
 import time
 
-client = chromadb.PersistentClient(
-    path="./chroma_db"
-)
+_client = None
+
+def get_client():
+    global _client
+    if _client is None:
+        _client = chromadb.PersistentClient(
+            path="./chroma_db"
+        )
+    return _client
 
 def get_collection(collection_name):
+    client = get_client()
     return client.get_or_create_collection(
         name=collection_name
     )
@@ -43,6 +50,7 @@ def store_chunks(
 
 def delete_collection(collection_name):
     try:
+        client = get_client()
         client.delete_collection(name=collection_name)
         return True
     except Exception:
@@ -57,6 +65,7 @@ def get_collection_size(collection_name):
 
 def get_db_stats(collection_name):
     try:
+        client = get_client()
         collection = client.get_collection(name=collection_name)
         count = collection.count()
         return {
@@ -74,6 +83,7 @@ def cleanup_expired_collections(max_age_seconds=7200):
     """
     try:
         current_time = int(time.time())
+        client = get_client()
         collections = client.list_collections()
         for coll in collections:
             name = coll.name
